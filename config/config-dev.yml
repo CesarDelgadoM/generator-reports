@@ -1,0 +1,36 @@
+server:
+  port: :3033
+
+worker:
+  pool: 10
+  idle: 30
+
+postgres:
+  Driver: postgres
+  Host: localhost
+  User: root
+  Password: root
+  DBName: restaurant-report
+  Port: 5432
+  SSLMode: disable
+
+rabbitmq:
+  URI: amqp://%s:%s@localhost:5672/
+  user: guest
+  password: guest
+
+consumer:
+  databus:
+    exchangeType: direct
+    contentType: application/json
+  branch:
+    exchangeType: direct
+    contentType: application/json
+
+  
+#pdf:
+#  branch:
+#    fileName: {name}_restaurant_report
+#    format: .pdf
+#    font: Arial
+#    Size: 12
