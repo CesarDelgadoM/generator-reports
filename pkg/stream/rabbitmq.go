@@ -45,6 +45,13 @@ type ConsumeOpts struct {
 	Args      amqp.Table
 }
 
+type QueueDelete struct {
+	Name     string
+	IfUnused bool
+	IfEmpty  bool
+	NoWait   bool
+}
+
 type RabbitMQ struct {
 	*amqp.Connection
 }

@@ -32,8 +32,7 @@ func (s *Server) Run() {
 
 	// DataBus
 	databus := databus.NewDataBus(s.config.Consumer.DataBus, rabbitmq, workerpool)
-
-	databus.ConsumeQueueNames()
+	databus.ConsumeQueueNames(s.config.Consumer)
 
 	// App
 	app := fiber.New()

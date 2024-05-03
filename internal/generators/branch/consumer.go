@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
 	"github.com/CesarDelgadoM/generator-reports/internal/utils"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
@@ -20,32 +21,41 @@ type BranchConsumer struct {
 	consumer consumer.IConsumer
 }
 
-func NewBranchConsumer(consumer consumer.IConsumer) *BranchConsumer {
+func NewBranchConsumer(config *config.Branch, rabbitmq *stream.RabbitMQ) *BranchConsumer {
+	opts := &consumer.ConsumerOpts{
+		ExchangeType: config.ExchangeType,
+		ContentType:  config.ContentType,
+	}
+
 	return &BranchConsumer{
-		consumer: consumer,
+		consumer: consumer.NewConsumer(opts, rabbitmq),
 	}
 }
 
 func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
-	var timeout *time.Timer = time.NewTimer(idleTimeout)
-	var consumerName string = queueName + suffix
+	zap.Log.Info("Consumer branch queue start: ", queueName)
+
+	timeout := time.NewTimer(idleTimeout)
+	consumerName := queueName + suffix
 
 	queue := bc.consumer.Queue(&stream.QueueOpts{
-		Name:    queueName,
-		Durable: true,
+		Name: queueName,
 	})
 
 	msgs := bc.consumer.Consume(&stream.ConsumeOpts{
-		Name:      queue.Name,
-		Consumer:  consumerName,
-		AutoAck:   true,
-		Exclusive: true,
+		Name:     queue.Name,
+		Consumer: consumerName,
+		AutoAck:  true,
 	})
 
 	bc.wg.Add(1)
 	go func() {
-		defer bc.consumer.Cancel(consumerName, false)
 		defer bc.wg.Done()
+		defer bc.consumer.Close()
+		defer bc.consumer.QueueDelete(&stream.QueueDelete{
+			Name: queueName,
+		})
+		defer bc.consumer.Cancel(consumerName, false)
 
 		zap.Log.Info("Consume branch queue...")
 
@@ -53,9 +63,11 @@ func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 		select {
 		case m := <-msgs:
 			msg := utils.UnmarshalMessage(m.Body)
-			restaurant := utils.UnmarshalRestaurant(msg.Data)
 
-			zap.Log.Info(restaurant)
+			restaurant := utils.UnmarshalRestaurant(msg.Data)
+			if restaurant != nil {
+				zap.Log.Info(restaurant)
+			}
 
 			timeout.Reset(idleTimeout)
 
@@ -69,14 +81,16 @@ func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 			select {
 			case m := <-msgs:
 				msg := utils.UnmarshalMessage(m.Body)
-				if msg.Status == 0 {
-					zap.Log.Info("Finished process successfully")
-					return
-				}
-				//branch := utils.UnmarshalBranches(msg.Data)
 
-				// Branches Data
-				//zap.Log.Info(branch)
+				branches := utils.UnmarshalBranches(msg.Data)
+				if branches != nil {
+					zap.Log.Info(branches)
+
+					if msg.Status == 0 {
+						zap.Log.Info("Finished process successfully")
+						return
+					}
+				}
 
 				timeout.Reset(idleTimeout)
 
@@ -88,5 +102,5 @@ func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 
 	}()
 	bc.wg.Wait()
-	zap.Log.Info("Consume branch queue finished")
+	zap.Log.Info("Consumer branch queue finished: ", queueName)
 }

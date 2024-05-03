@@ -2,7 +2,7 @@ server:
   port: :3033
 
 worker:
-  pool: 10
+  pool: 100
   idle: 30
 
 postgres:

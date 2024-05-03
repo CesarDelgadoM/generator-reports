@@ -19,11 +19,12 @@ const (
 )
 
 type IDataBus interface {
-	ConsumeQueueNames()
+	ConsumeQueueNames(config *config.Consumer)
 }
 
 type dataBus struct {
 	consumer   consumer.IConsumer
+	rabbitmq   *stream.RabbitMQ
 	workerpool *workerpool.WorkerPool
 }
 
@@ -36,11 +37,13 @@ func NewDataBus(config *config.DataBus, rabbitmq *stream.RabbitMQ, workerpool *w
 
 	return &dataBus{
 		consumer:   consumer.NewConsumer(opts, rabbitmq),
+		rabbitmq:   rabbitmq,
 		workerpool: workerpool,
 	}
 }
 
-func (db *dataBus) ConsumeQueueNames() {
+func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
+
 	queue := db.consumer.Queue(&stream.QueueOpts{
 		Name:    queuenames,
 		Durable: true,
@@ -56,12 +59,15 @@ func (db *dataBus) ConsumeQueueNames() {
 
 		for m := range msgs {
 			msg := utils.UnmarshalMessageQueueNames(m.Body)
+			if msg == nil {
+				continue
+			}
 
 			switch msg.ReportType {
 
 			case reportTypeBranch:
 				task = func() {
-					consumer := branch.NewBranchConsumer(db.consumer)
+					consumer := branch.NewBranchConsumer(config.Branch, db.rabbitmq)
 					consumer.ConsumeBranchQueue(msg.QueueName)
 				}
 

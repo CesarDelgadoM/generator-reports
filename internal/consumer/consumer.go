@@ -10,6 +10,7 @@ type IConsumer interface {
 	Exchange(opts *stream.ExchangeOpts)
 	BindQueue(opts *stream.BindOpts)
 	Queue(opts *stream.QueueOpts) amqp.Queue
+	QueueDelete(opts *stream.QueueDelete)
 	Consume(opts *stream.ConsumeOpts) <-chan amqp.Delivery
 	Cancel(consumer string, noWait bool)
 	Close()
@@ -76,6 +77,13 @@ func (c *consumer) Queue(opts *stream.QueueOpts) amqp.Queue {
 	}
 
 	return queue
+}
+
+func (c *consumer) QueueDelete(opts *stream.QueueDelete) {
+	_, err := c.ch.QueueDelete(opts.Name, opts.IfUnused, opts.IfEmpty, opts.NoWait)
+	if err != nil {
+		zap.Log.Error("Failed to remove queue: ", err)
+	}
 }
 
 func (c *consumer) Consume(opts *stream.ConsumeOpts) <-chan amqp.Delivery {
