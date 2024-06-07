@@ -1,5 +1,11 @@
 package models
 
+import (
+	"encoding/json"
+
+	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
+)
+
 // Model branch
 type Branch struct {
 	Name      string    `json:"name"`
@@ -38,4 +44,15 @@ type menu struct {
 	MainCourse   []string `json:"main_course"`
 	Drinks       []string `json:"drinks"`
 	Desserts     []string `json:"desserts"`
+}
+
+func UnmarshalBranches(msg []byte) *[]Branch {
+	var branches []Branch
+
+	if err := json.Unmarshal(msg, &branches); err != nil {
+		zap.Log.Error("Failed to make unmarshal to branches: ", err)
+		return nil
+	}
+
+	return &branches
 }

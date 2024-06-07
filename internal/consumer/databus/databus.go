@@ -6,7 +6,6 @@ import (
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
 	"github.com/CesarDelgadoM/generator-reports/internal/generators/branch"
-	"github.com/CesarDelgadoM/generator-reports/internal/utils"
 	"github.com/CesarDelgadoM/generator-reports/internal/workerpool"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
@@ -58,7 +57,7 @@ func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
 		var task workerpool.Task
 
 		for m := range msgs {
-			msg := utils.UnmarshalMessageQueueNames(m.Body)
+			msg := consumer.UnmarshalMessageQueueNames(m.Body)
 			if msg == nil {
 				continue
 			}

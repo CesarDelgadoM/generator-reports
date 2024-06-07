@@ -6,14 +6,14 @@ import (
 
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
-	"github.com/CesarDelgadoM/generator-reports/internal/utils"
+	"github.com/CesarDelgadoM/generator-reports/internal/generators/restaurant"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
 )
 
 const (
-	idleTimeout = 60 * time.Second
-	suffix      = "-consumer"
+	IDLE_TIMEOUT = 60 * time.Second
+	SUFFIX       = "-consumer"
 )
 
 type BranchConsumer struct {
@@ -35,8 +35,8 @@ func NewBranchConsumer(config *config.Branch, rabbitmq *stream.RabbitMQ) *Branch
 func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 	zap.Log.Info("Consumer branch queue start: ", queueName)
 
-	timeout := time.NewTimer(idleTimeout)
-	consumerName := queueName + suffix
+	timeout := time.NewTimer(IDLE_TIMEOUT)
+	consumerName := queueName + SUFFIX
 
 	queue := bc.consumer.Queue(&stream.QueueOpts{
 		Name: queueName,
@@ -51,55 +51,53 @@ func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 	bc.wg.Add(1)
 	go func() {
 		defer bc.wg.Done()
+		// Disconnect consumer
 		defer bc.consumer.Close()
-		defer bc.consumer.QueueDelete(&stream.QueueDelete{
-			Name: queueName,
-		})
+		defer bc.consumer.QueueDelete(&stream.QueueDelete{Name: queueName})
 		defer bc.consumer.Cancel(consumerName, false)
 
-		zap.Log.Info("Consume branch queue...")
+		var format string
 
-		// Restaurant Data
+		// Initialize report wiht restaurant data
 		select {
 		case m := <-msgs:
-			msg := utils.UnmarshalMessage(m.Body)
+			timeout.Reset(IDLE_TIMEOUT)
 
-			restaurant := utils.UnmarshalRestaurant(msg.Data)
-			if restaurant != nil {
-				zap.Log.Info(restaurant)
+			msg := consumer.UnmarshalMessage(m.Body)
+
+			format = msg.Format
+
+			restaurantGenerator, err := restaurant.GetGeneratorRestaurantReport(format)
+			if err != nil {
+				return
 			}
-
-			timeout.Reset(idleTimeout)
+			restaurantGenerator.GenerateReport(msg)
 
 		case <-timeout.C:
-			zap.Log.Info("Timeout exceeded, the process not finished succesfully")
+			zap.Log.Info("Timeout exceeded, disconnecting consumer")
 			return
 		}
 
 		// Branches
+		branchGenerator, err := GetGeneratorBranchReport(format)
+	Loop:
 		for {
 			select {
 			case m := <-msgs:
-				msg := utils.UnmarshalMessage(m.Body)
+				timeout.Reset(IDLE_TIMEOUT)
 
-				branches := utils.UnmarshalBranches(msg.Data)
-				if branches != nil {
-					zap.Log.Info(branches)
+				msg := consumer.UnmarshalMessage(m.Body)
 
-					if msg.Status == 0 {
-						zap.Log.Info("Finished process successfully")
-						return
-					}
+				branchGenerator.GenerateReport(msg)
+				if err != nil {
+					return
 				}
 
-				timeout.Reset(idleTimeout)
-
 			case <-timeout.C:
-				zap.Log.Info("Timeout exceeded, the process not finished successfully")
-				return
+				zap.Log.Info("Timeout exceeded, disconnecting consumer")
+				break Loop
 			}
 		}
-
 	}()
 	bc.wg.Wait()
 	zap.Log.Info("Consumer branch queue finished: ", queueName)

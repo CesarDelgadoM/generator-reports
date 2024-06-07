@@ -3,6 +3,7 @@ module github.com/CesarDelgadoM/generator-reports
 go 1.21.4
 
 require (
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/spf13/viper v1.18.2
