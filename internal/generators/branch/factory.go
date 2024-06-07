@@ -12,7 +12,7 @@ func GetGeneratorBranchReport(format string) (generators.IReport, error) {
 	switch format {
 	case generators.PDF:
 		zap.Log.Info("Excel reporting generation")
-		return NewBranchReport(), nil
+		return NewBranchReportPdf(), nil
 
 	case generators.EXCEL:
 		zap.Log.Info("Excel reporting generation")

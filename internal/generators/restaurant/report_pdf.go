@@ -7,14 +7,14 @@ import (
 	"github.com/gofiber/fiber/v2/log"
 )
 
-type RestaurantReportPDF struct {
+type RestaurantReportPdf struct {
 }
 
 func NewRestaurantReport() generators.IReport {
-	return &RestaurantReportPDF{}
+	return &RestaurantReportPdf{}
 }
 
-func (rr *RestaurantReportPDF) GenerateReport(msg *consumer.Message) {
+func (rr *RestaurantReportPdf) GenerateReport(msg *consumer.Message) {
 	restaurant := models.UnmarshalRestaurant(msg.Data)
 
 	log.Info(restaurant)

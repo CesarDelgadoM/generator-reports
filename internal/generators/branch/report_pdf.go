@@ -7,14 +7,14 @@ import (
 	"github.com/gofiber/fiber/v2/log"
 )
 
-type BranchReportPDF struct {
+type BranchReportPdf struct {
 }
 
-func NewBranchReport() generators.IReport {
-	return &BranchReportPDF{}
+func NewBranchReportPdf() generators.IReport {
+	return &BranchReportPdf{}
 }
 
-func (br *BranchReportPDF) GenerateReport(msg *consumer.Message) {
+func (br *BranchReportPdf) GenerateReport(msg *consumer.Message) {
 	branches := models.UnmarshalBranches(msg.Data)
 
 	for _, b := range *branches {

@@ -1,8 +1,6 @@
 package databus
 
 import (
-	"fmt"
-
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
 	"github.com/CesarDelgadoM/generator-reports/internal/generators/branch"
@@ -77,6 +75,5 @@ func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
 			// Submit task to the workerpool
 			db.workerpool.Submit(task)
 		}
-		fmt.Println("finished...")
 	}()
 }
