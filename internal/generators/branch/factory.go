@@ -3,29 +3,18 @@ package branch
 import (
 	"errors"
 
-	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
+	"github.com/CesarDelgadoM/generator-reports/internal/generators"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 )
 
-const (
-	// Formats
-	PDF   = "PDF"
-	EXCEL = "EXCEL"
-)
-
-// Interface to strategies
-type IReport interface {
-	GenerateReport(msg *consumer.Message)
-}
-
-func GetGeneratorBranchReport(format string) (IReport, error) {
+func GetGeneratorBranchReport(format string) (generators.IReport, error) {
 
 	switch format {
-	case PDF:
+	case generators.PDF:
 		zap.Log.Info("Excel reporting generation")
 		return NewBranchReport(), nil
 
-	case EXCEL:
+	case generators.EXCEL:
 		zap.Log.Info("Excel reporting generation")
 		return nil, nil
 
