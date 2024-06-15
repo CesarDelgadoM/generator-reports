@@ -7,8 +7,7 @@ import (
 
 func main() {
 	// Config
-	load := config.LoadConfig("config-dev.yml")
-	config := config.ParseConfig(load)
+	config := config.GetConfig("config-dev.yml")
 
 	// Server
 	server := server.NewServer(config)

@@ -1,42 +1,46 @@
 package branch
 
 import (
-	"sync"
 	"time"
 
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
-	"github.com/CesarDelgadoM/generator-reports/internal/generators/restaurant"
+	"github.com/CesarDelgadoM/generator-reports/internal/generators"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
 )
 
 const (
-	IDLE_TIMEOUT = 60 * time.Second
-	SUFFIX       = "-consumer"
+	idle_timeout = 30 * time.Second
+	suffix       = "-consumer"
 )
 
 type BranchConsumer struct {
-	wg       sync.WaitGroup
+	config   *config.Config
 	consumer consumer.IConsumer
 }
 
-func NewBranchConsumer(config *config.Branch, rabbitmq *stream.RabbitMQ) *BranchConsumer {
+func NewBranchConsumer(config *config.Config, rabbitmq *stream.RabbitMQ) consumer.IQueueConsumer {
 	opts := &consumer.ConsumerOpts{
-		ExchangeType: config.ExchangeType,
-		ContentType:  config.ContentType,
+		ExchangeType: config.Branch.Consumer.ExchangeType,
+		ContentType:  config.Branch.Consumer.ContentType,
 	}
 
 	return &BranchConsumer{
+		config:   config,
 		consumer: consumer.NewConsumer(opts, rabbitmq),
 	}
 }
 
-func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
+func (bc *BranchConsumer) ConsumeQueueName(queueName string) {
 	zap.Log.Info("Consumer branch queue start: ", queueName)
 
-	timeout := time.NewTimer(IDLE_TIMEOUT)
-	consumerName := queueName + SUFFIX
+	timeout := time.NewTimer(idle_timeout)
+	consumerName := queueName + suffix
+
+	// Disconnect consumer
+	defer bc.consumer.QueueDelete(&stream.QueueDelete{Name: queueName})
+	defer bc.consumer.Cancel(consumerName, false)
 
 	queue := bc.consumer.Queue(&stream.QueueOpts{
 		Name: queueName,
@@ -48,57 +52,35 @@ func (bc *BranchConsumer) ConsumeBranchQueue(queueName string) {
 		AutoAck:  true,
 	})
 
-	bc.wg.Add(1)
-	go func() {
-		defer bc.wg.Done()
-		// Disconnect consumer
-		defer bc.consumer.Close()
-		defer bc.consumer.QueueDelete(&stream.QueueDelete{Name: queueName})
-		defer bc.consumer.Cancel(consumerName, false)
+	var generator generators.IReport
 
-		var format string
+	m := <-msgs
+	msg := consumer.UnmarshalMessage(m.Body)
 
-		// Initialize report wiht restaurant data
+	// Initialize report with restaurant data
+	generator, err := GetGeneratorBranchReport(msg.Format, bc.config)
+	if err != nil {
+		zap.Log.Error(err)
+		return
+	}
+	generator.GenerateReport(msg)
+
+	// Branches
+Loop:
+	for {
 		select {
 		case m := <-msgs:
-			timeout.Reset(IDLE_TIMEOUT)
-
 			msg := consumer.UnmarshalMessage(m.Body)
 
-			format = msg.Format
+			generator.GenerateReport(msg)
 
-			restaurantGenerator, err := restaurant.GetGeneratorRestaurantReport(format)
-			if err != nil {
-				return
-			}
-			restaurantGenerator.GenerateReport(msg)
+			timeout.Reset(idle_timeout)
 
 		case <-timeout.C:
 			zap.Log.Info("Timeout exceeded, disconnecting consumer")
-			return
+			break Loop
 		}
+	}
 
-		// Branches
-		branchGenerator, err := GetGeneratorBranchReport(format)
-	Loop:
-		for {
-			select {
-			case m := <-msgs:
-				timeout.Reset(IDLE_TIMEOUT)
-
-				msg := consumer.UnmarshalMessage(m.Body)
-
-				branchGenerator.GenerateReport(msg)
-				if err != nil {
-					return
-				}
-
-			case <-timeout.C:
-				zap.Log.Info("Timeout exceeded, disconnecting consumer")
-				break Loop
-			}
-		}
-	}()
-	bc.wg.Wait()
 	zap.Log.Info("Consumer branch queue finished: ", queueName)
 }

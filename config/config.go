@@ -11,7 +11,8 @@ type Config struct {
 	Worker   *WorkerConfig
 	Postgres *PostgresConfig
 	RabbitMQ *RabbitMQ
-	Consumer *Consumer
+	DataBus  *DataBus
+	Branch   *Branch
 }
 
 // Server config
@@ -43,21 +44,32 @@ type RabbitMQ struct {
 }
 
 type Consumer struct {
-	DataBus *DataBus
-	Branch  *Branch
+	ExchangeType string
+	ContentType  string
 }
 
 type DataBus struct {
-	ExchangeType string
-	ContentType  string
+	Consumer *Consumer
 }
 
 type Branch struct {
-	ExchangeType string
-	ContentType  string
+	Consumer *Consumer
+	Pdf      *PDF
 }
 
-func LoadConfig(filename string) *viper.Viper {
+type PDF struct {
+	Path   string
+	Suffix string
+	Font   string
+	Title  string
+}
+
+func GetConfig(filename string) *Config {
+	load := loadConfig("config-dev.yml")
+	return parseConfig(load)
+}
+
+func loadConfig(filename string) *viper.Viper {
 	v := viper.New()
 
 	v.SetConfigName(filename)
@@ -72,7 +84,7 @@ func LoadConfig(filename string) *viper.Viper {
 	return v
 }
 
-func ParseConfig(v *viper.Viper) *Config {
+func parseConfig(v *viper.Viper) *Config {
 	var conf Config
 
 	if err := v.Unmarshal(&conf); err != nil {

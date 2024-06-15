@@ -1,57 +1,62 @@
 package databus
 
 import (
+	"sync"
+
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
-	"github.com/CesarDelgadoM/generator-reports/internal/generators/branch"
 	"github.com/CesarDelgadoM/generator-reports/internal/workerpool"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
 )
 
 const (
-	queuenames = "queues-names-queue"
+	QUEUES_NAMES_QUEUE = "queues-names-queue"
 
 	reportTypeBranch = "branch"
 )
 
 type IDataBus interface {
-	ConsumeQueueNames(config *config.Consumer)
+	StartDataBusConsumer()
 }
 
 type dataBus struct {
-	consumer   consumer.IConsumer
-	rabbitmq   *stream.RabbitMQ
+	queuenames consumer.IConsumer
 	workerpool *workerpool.WorkerPool
+	wg         sync.WaitGroup
+	branches   consumer.IQueueConsumer
 }
 
-func NewDataBus(config *config.DataBus, rabbitmq *stream.RabbitMQ, workerpool *workerpool.WorkerPool) IDataBus {
+func NewDataBusConsumer(config *config.Config, rabbitmq *stream.RabbitMQ, workerpool *workerpool.WorkerPool, branches consumer.IQueueConsumer) IDataBus {
 
 	opts := &consumer.ConsumerOpts{
-		ExchangeType: config.ExchangeType,
-		ContentType:  config.ContentType,
+		ExchangeType: config.DataBus.Consumer.ExchangeType,
+		ContentType:  config.DataBus.Consumer.ContentType,
 	}
 
 	return &dataBus{
-		consumer:   consumer.NewConsumer(opts, rabbitmq),
-		rabbitmq:   rabbitmq,
+		queuenames: consumer.NewConsumer(opts, rabbitmq),
+		branches:   branches,
 		workerpool: workerpool,
 	}
 }
 
-func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
+func (db *dataBus) StartDataBusConsumer() {
 
-	queue := db.consumer.Queue(&stream.QueueOpts{
-		Name:    queuenames,
+	queue := db.queuenames.Queue(&stream.QueueOpts{
+		Name:    QUEUES_NAMES_QUEUE,
 		Durable: true,
 	})
 
-	msgs := db.consumer.Consume(&stream.ConsumeOpts{
+	msgs := db.queuenames.Consume(&stream.ConsumeOpts{
 		Name:    queue.Name,
 		AutoAck: true,
 	})
 
+	db.wg.Add(1)
 	go func() {
+		defer db.wg.Done()
+
 		var task workerpool.Task
 
 		for m := range msgs {
@@ -64,8 +69,7 @@ func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
 
 			case reportTypeBranch:
 				task = func() {
-					consumer := branch.NewBranchConsumer(config.Branch, db.rabbitmq)
-					consumer.ConsumeBranchQueue(msg.QueueName)
+					db.branches.ConsumeQueueName(msg.QueueName)
 				}
 
 			default:
@@ -76,4 +80,5 @@ func (db *dataBus) ConsumeQueueNames(config *config.Consumer) {
 			db.workerpool.Submit(task)
 		}
 	}()
+	db.wg.Wait()
 }

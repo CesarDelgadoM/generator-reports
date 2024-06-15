@@ -19,18 +19,17 @@ rabbitmq:
   user: guest
   password: guest
 
-consumer:
-  databus:
-    exchangeType: direct
-    contentType: application/json
-  branch:
+databus:
+  consumer:
     exchangeType: direct
     contentType: application/json
 
-  
-#pdf:
-#  branch:
-#    fileName: {name}_restaurant_report
-#    format: .pdf
-#    font: Arial
-#    Size: 12
+branch:
+  consumer:
+    exchangeType: direct
+    contentType: application/json
+  pdf:
+    path: /Users/cesardelgadom/Documentos/go/projects/restaurant-report/pdf_generated/  
+    suffix: -branches-report.pdf
+    font: Arial
+    title: Report Branches

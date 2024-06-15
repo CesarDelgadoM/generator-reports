@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer/databus"
+	"github.com/CesarDelgadoM/generator-reports/internal/generators/branch"
 	"github.com/CesarDelgadoM/generator-reports/internal/workerpool"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
@@ -30,9 +31,14 @@ func (s *Server) Run() {
 	// Workerpool
 	workerpool := workerpool.NewWorkerPool(s.config.Worker)
 
+	// Consumers
+	branchConsumer := branch.NewBranchConsumer(s.config, rabbitmq)
+
 	// DataBus
-	databus := databus.NewDataBus(s.config.Consumer.DataBus, rabbitmq, workerpool)
-	databus.ConsumeQueueNames(s.config.Consumer)
+	databus := databus.NewDataBusConsumer(s.config, rabbitmq, workerpool, branchConsumer)
+
+	// Launch main consumer
+	databus.StartDataBusConsumer()
 
 	// App
 	app := fiber.New()
