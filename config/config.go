@@ -12,6 +12,7 @@ type Config struct {
 	Postgres *PostgresConfig
 	RabbitMQ *RabbitMQ
 	DataBus  *DataBus
+	SMTP     *SMTP
 	Branch   *Branch
 }
 
@@ -52,9 +53,21 @@ type DataBus struct {
 	Consumer *Consumer
 }
 
+type SMTP struct {
+	Gmail Gmail
+}
+
+type Gmail struct {
+	Client   string
+	Port     int
+	Email    string
+	Password string
+}
+
 type Branch struct {
-	Consumer *Consumer
-	Pdf      *PDF
+	Consumer     *Consumer
+	Pdf          *PDF
+	Notification *Notification
 }
 
 type PDF struct {
@@ -64,8 +77,23 @@ type PDF struct {
 	Title  string
 }
 
+type Success struct {
+	Subject string
+	Body    string
+}
+
+type Notification struct {
+	Success *Success
+	Failed  *Failed
+}
+
+type Failed struct {
+	Subject string
+	Body    string
+}
+
 func GetConfig(filename string) *Config {
-	load := loadConfig("config-dev.yml")
+	load := loadConfig(filename)
 	return parseConfig(load)
 }
 
@@ -74,7 +102,7 @@ func loadConfig(filename string) *viper.Viper {
 
 	v.SetConfigName(filename)
 	v.SetConfigType("yaml")
-	v.AddConfigPath("../config")
+	v.AddConfigPath("../../config")
 	v.AutomaticEnv()
 
 	if err := v.ReadInConfig(); err != nil {

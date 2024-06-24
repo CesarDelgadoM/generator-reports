@@ -25,7 +25,7 @@ func UnmarshalMessageQueueNames(m []byte) *MessageQueueNames {
 
 // Message to consumer
 type Message struct {
-	Userid uint
+	UserId uint
 	Format string
 	Type   string
 	Status int

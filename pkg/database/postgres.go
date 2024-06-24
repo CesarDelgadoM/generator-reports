@@ -13,7 +13,7 @@ type PostgresDB struct {
 	*gorm.DB
 }
 
-func ConnectPostgresDB(config config.PostgresConfig) *PostgresDB {
+func ConnectPostgresDB(config *config.PostgresConfig) *PostgresDB {
 	dns := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		config.Host,
 		config.User,

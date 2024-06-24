@@ -24,6 +24,13 @@ databus:
     exchangeType: direct
     contentType: application/json
 
+smtp:
+  gmail:
+    client: smtp.gmail.com
+    port: 587
+    email: reports473@gmail.com
+    password: hwiw lprg aifa vegz
+
 branch:
   consumer:
     exchangeType: direct
@@ -33,3 +40,10 @@ branch:
     suffix: -branches-report.pdf
     font: Arial
     title: Report Branches
+  notification:
+    success: 
+      subject: Branch report - 
+      body: Hi, your report is ready!
+    failed:
+      subject: Branch report failed -
+      body: Hi, the branch report failed the generation, sorry!

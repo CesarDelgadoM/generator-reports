@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	QUEUES_NAMES_QUEUE = "queues-names-queue"
+	queues_names_queue = "queues-names-queue"
 
 	reportTypeBranch = "branch"
 )
@@ -44,7 +44,7 @@ func NewDataBusConsumer(config *config.Config, rabbitmq *stream.RabbitMQ, worker
 func (db *dataBus) StartDataBusConsumer() {
 
 	queue := db.queuenames.Queue(&stream.QueueOpts{
-		Name:    QUEUES_NAMES_QUEUE,
+		Name:    queues_names_queue,
 		Durable: true,
 	})
 

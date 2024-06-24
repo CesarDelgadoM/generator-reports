@@ -1,6 +1,7 @@
 package branch
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/CesarDelgadoM/generator-reports/config"
@@ -23,21 +24,19 @@ const (
 )
 
 type BranchReportPdf struct {
-	config        *config.PDF
-	pdf           *fpdf.Fpdf
-	fileName      string
-	totalBranches int
-	count         int
+	config   *config.PDF
+	pdf      *fpdf.Fpdf
+	filename string
+	count    int
 }
 
 func NewBranchReportPdf(config *config.PDF) generators.IReport {
-
 	return &BranchReportPdf{
 		config: config,
 	}
 }
 
-func (br *BranchReportPdf) GenerateReport(msg *consumer.Message) {
+func (br *BranchReportPdf) GenerateReport(msg *consumer.Message) error {
 
 	switch msg.Type {
 
@@ -45,16 +44,17 @@ func (br *BranchReportPdf) GenerateReport(msg *consumer.Message) {
 		restaurant := models.UnmarshalRestaurant(msg.Data)
 		br.writeRestaurantData(restaurant)
 
+		return nil
+
 	case branch_type:
 		branches := models.UnmarshalBranches(msg.Data)
 		br.writeBranchesData(branches)
 
+		return nil
+
 	default:
 		zap.Log.Warn("Type data not implemented: ", msg.Type)
-	}
-
-	if msg.Status == 0 {
-		br.closeFile(br.fileName)
+		return errors.New("type data not implemented")
 	}
 }
 
@@ -62,7 +62,7 @@ func (br *BranchReportPdf) writeRestaurantData(restaurant *models.Restaurant) {
 
 	font := br.config.Font
 	title := br.config.Title
-	br.fileName = restaurant.Name
+	br.filename = restaurant.Name
 
 	br.pdf = fpdf.New("P", "mm", "A4", "")
 
@@ -126,8 +126,6 @@ func (br *BranchReportPdf) writeRestaurantData(restaurant *models.Restaurant) {
 
 func (br *BranchReportPdf) writeBranchesData(branches *[]models.Branch) {
 
-	br.totalBranches = br.totalBranches + len(*branches)
-
 	pageW, _ := br.pdf.GetPageSize()
 	safeAreaW := pageW - 2*marginX
 	_, lineHeight := br.pdf.GetFontSize()
@@ -189,9 +187,13 @@ func (br *BranchReportPdf) writeBranchesData(branches *[]models.Branch) {
 	}
 }
 
-func (br *BranchReportPdf) closeFile(name string) {
-	uniqueName := name + "-" + utils.TimestampID() + br.config.Suffix
-	br.pdf.OutputFileAndClose(br.config.Path + uniqueName)
+func (br *BranchReportPdf) CloseReport() (string, error) {
+	file := br.filename + "-" + utils.TimestampID() + br.config.Suffix
+	zap.Log.Info("Closing file")
 
-	zap.Log.Info("Closed file: ", uniqueName)
+	return file, br.pdf.OutputFileAndClose(br.config.Path + file)
+}
+
+func (br *BranchReportPdf) DeleteReport() error {
+	return nil
 }

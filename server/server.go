@@ -4,7 +4,10 @@ import (
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer/databus"
 	"github.com/CesarDelgadoM/generator-reports/internal/generators/branch"
+	"github.com/CesarDelgadoM/generator-reports/internal/repositorys"
 	"github.com/CesarDelgadoM/generator-reports/internal/workerpool"
+	"github.com/CesarDelgadoM/generator-reports/pkg/database"
+	"github.com/CesarDelgadoM/generator-reports/pkg/email"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
 	"github.com/gofiber/fiber/v2"
@@ -31,8 +34,17 @@ func (s *Server) Run() {
 	// Workerpool
 	workerpool := workerpool.NewWorkerPool(s.config.Worker)
 
+	// Databases
+	postgresdb := database.ConnectPostgresDB(s.config.Postgres)
+
+	// SMTP
+	smtp := email.NewEmailSMTP(s.config)
+
+	// Repositorys
+	userRepo := repositorys.NewUserRepository(postgresdb)
+
 	// Consumers
-	branchConsumer := branch.NewBranchConsumer(s.config, rabbitmq)
+	branchConsumer := branch.NewBranchConsumer(s.config, rabbitmq, smtp, userRepo)
 
 	// DataBus
 	databus := databus.NewDataBusConsumer(s.config, rabbitmq, workerpool, branchConsumer)

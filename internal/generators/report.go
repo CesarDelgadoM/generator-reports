@@ -10,5 +10,7 @@ const (
 
 // Interface to strategies
 type IReport interface {
-	GenerateReport(msg *consumer.Message)
+	GenerateReport(msg *consumer.Message) error
+	CloseReport() (string, error)
+	DeleteReport() error
 }
