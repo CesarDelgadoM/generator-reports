@@ -102,7 +102,7 @@ func loadConfig(filename string) *viper.Viper {
 
 	v.SetConfigName(filename)
 	v.SetConfigType("yaml")
-	v.AddConfigPath("../../config")
+	v.AddConfigPath("../config")
 	v.AutomaticEnv()
 
 	if err := v.ReadInConfig(); err != nil {

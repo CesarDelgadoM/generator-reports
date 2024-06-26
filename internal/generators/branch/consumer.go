@@ -44,7 +44,6 @@ func (bc *BranchConsumer) ConsumeQueueName(queuename string) {
 
 	timeout := time.NewTimer(idle_timeout)
 	consumerName := queuename + suffix
-	name := strings.Split(queuename, "-")[0]
 
 	// Disconnect consumer
 	defer bc.consumer.QueueDelete(&stream.QueueDelete{Name: queuename})
@@ -57,7 +56,6 @@ func (bc *BranchConsumer) ConsumeQueueName(queuename string) {
 	msgs := bc.consumer.Consume(&stream.ConsumeOpts{
 		Name:     queue.Name,
 		Consumer: consumerName,
-		AutoAck:  true,
 	})
 
 	var generator generators.IReport
@@ -89,6 +87,8 @@ Loop:
 				return
 			}
 
+			m.Ack(false)
+
 			if msg.Status == 0 {
 				zap.Log.Info(queuename, " Status indicator value is: ", msg.Status)
 
@@ -107,7 +107,7 @@ Loop:
 				}
 
 				// Send email
-				bc.sendEmail(name, file, email)
+				bc.sendEmail(queuename, file, email)
 
 				break Loop
 			}
@@ -123,19 +123,22 @@ Loop:
 	zap.Log.Info(queuename, " Consumer branch queue finished")
 }
 
-func (bc *BranchConsumer) sendEmail(name string, file string, email string) {
+func (bc *BranchConsumer) sendEmail(queuename string, file string, email string) {
 	path := bc.config.Branch.Pdf.Path + file
-	subject := bc.config.Branch.Notification.Success.Subject + name
+	subject := bc.config.Branch.Notification.Success.Subject + strings.Split(queuename, "-")[0]
 	body := bc.config.Branch.Notification.Success.Body
 
-	if !bc.email.SendEmailWithAttachments(email, path, subject, body) {
-		zap.Log.Info("The sent notification success email failed")
+	if bc.email.SendEmailWithAttachments(email, path, subject, body) {
+		zap.Log.Info(queuename, " email sent!")
 
-		subjectNotf := bc.config.Branch.Notification.Failed.Subject
-		bodyNotf := bc.config.Branch.Notification.Failed.Body
+	} else {
+		zap.Log.Info(queuename, " The sent notification success email failed")
 
-		if !bc.email.SendEmailNotification(email, subjectNotf, bodyNotf) {
-			zap.Log.Info("The sent notification failed email failed")
+		subject = bc.config.Branch.Notification.Failed.Subject
+		body = bc.config.Branch.Notification.Failed.Body
+
+		if !bc.email.SendEmailNotification(email, subject, body) {
+			zap.Log.Info(queuename, " The sent notification failed email failed")
 		}
 	}
 }
