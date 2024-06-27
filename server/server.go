@@ -43,8 +43,11 @@ func (s *Server) Run() {
 	// Repositorys
 	userRepo := repositorys.NewUserRepository(postgresdb)
 
+	// Emails
+	email := branch.NewEmailBranch(s.config, smtp)
+
 	// Consumers
-	branchConsumer := branch.NewBranchConsumer(s.config, rabbitmq, smtp, userRepo)
+	branchConsumer := branch.NewBranchConsumer(s.config, rabbitmq, email, userRepo)
 
 	// DataBus
 	databus := databus.NewDataBusConsumer(s.config, rabbitmq, workerpool, branchConsumer)

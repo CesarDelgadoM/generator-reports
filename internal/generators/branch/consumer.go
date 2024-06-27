@@ -1,14 +1,12 @@
 package branch
 
 import (
-	"strings"
 	"time"
 
 	"github.com/CesarDelgadoM/generator-reports/config"
 	"github.com/CesarDelgadoM/generator-reports/internal/consumer"
 	"github.com/CesarDelgadoM/generator-reports/internal/generators"
 	"github.com/CesarDelgadoM/generator-reports/internal/repositorys"
-	"github.com/CesarDelgadoM/generator-reports/pkg/email"
 	"github.com/CesarDelgadoM/generator-reports/pkg/logger/zap"
 	"github.com/CesarDelgadoM/generator-reports/pkg/stream"
 )
@@ -20,12 +18,12 @@ const (
 
 type BranchConsumer struct {
 	config   *config.Config
-	email    *email.Email
+	email    IEmailBranch
 	consumer consumer.IConsumer
 	repo     repositorys.IUserRepository
 }
 
-func NewBranchConsumer(config *config.Config, rabbitmq *stream.RabbitMQ, email *email.Email, repo repositorys.IUserRepository) consumer.IQueueConsumer {
+func NewBranchConsumer(config *config.Config, rabbitmq *stream.RabbitMQ, email IEmailBranch, repo repositorys.IUserRepository) consumer.IQueueConsumer {
 	opts := &consumer.ConsumerOpts{
 		ExchangeType: config.Branch.Consumer.ExchangeType,
 		ContentType:  config.Branch.Consumer.ContentType,
@@ -107,7 +105,7 @@ Loop:
 				}
 
 				// Send email
-				bc.sendEmail(queuename, file, email)
+				bc.email.SendEmail(queuename, file, email)
 
 				break Loop
 			}
@@ -121,24 +119,4 @@ Loop:
 	}
 
 	zap.Log.Info(queuename, " Consumer branch queue finished")
-}
-
-func (bc *BranchConsumer) sendEmail(queuename string, file string, email string) {
-	path := bc.config.Branch.Pdf.Path + file
-	subject := bc.config.Branch.Notification.Success.Subject + strings.Split(queuename, "-")[0]
-	body := bc.config.Branch.Notification.Success.Body
-
-	if bc.email.SendEmailWithAttachments(email, path, subject, body) {
-		zap.Log.Info(queuename, " email sent!")
-
-	} else {
-		zap.Log.Info(queuename, " The sent notification success email failed")
-
-		subject = bc.config.Branch.Notification.Failed.Subject
-		body = bc.config.Branch.Notification.Failed.Body
-
-		if !bc.email.SendEmailNotification(email, subject, body) {
-			zap.Log.Info(queuename, " The sent notification failed email failed")
-		}
-	}
 }
